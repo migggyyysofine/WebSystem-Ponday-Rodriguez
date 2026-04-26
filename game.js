@@ -55,16 +55,14 @@ function renderGrid() {
 }
 
 // Handle tile click
-function onTileClick(row, col) {
+async function onTileClick(row, col) {
     if(!gameActive) return;
     
     if(selectedRow === -1 && selectedCol === -1) {
-        // Select first tile
         selectedRow = row;
         selectedCol = col;
         renderGrid();
     } else {
-        // Check if tiles are adjacent
         const isAdjacent = (Math.abs(selectedRow - row) + Math.abs(selectedCol - col)) === 1;
         
         if(isAdjacent) {
@@ -73,11 +71,28 @@ function onTileClick(row, col) {
             grid[selectedRow][selectedCol] = grid[row][col];
             grid[row][col] = temp;
             
+            renderGrid();
+            
+            // Check for matches
+            const matches = checkMatches();
+            if(matches.length > 0) {
+                const points = removeMatches(matches);
+                document.getElementById('score').textContent = currentScore;
+                // Show popup message
+                alert(`Match found! +${points} points!`);
+                renderGrid();
+            } else {
+                // Swap back if no match
+                const tempBack = grid[selectedRow][selectedCol];
+                grid[selectedRow][selectedCol] = grid[row][col];
+                grid[row][col] = tempBack;
+                alert('No match! Try again.');
+            }
+            
             selectedRow = -1;
             selectedCol = -1;
             renderGrid();
         } else {
-            // Select new tile
             selectedRow = row;
             selectedCol = col;
             renderGrid();
@@ -208,3 +223,24 @@ function testMatchDetection() {
     console.log(`Found ${matches.length} matching tiles`);
     return matches;
 }
+// Remove matched tiles and add score
+function removeMatches(matches) {
+    if(matches.length === 0) return 0;
+    
+    const pointsEarned = matches.length * 10;
+    currentScore += pointsEarned;
+    document.getElementById('score').textContent = currentScore;
+    
+    // Clear matched tiles
+    for(let match of matches) {
+        grid[match.row][match.col] = -1; // Mark as empty
+    }
+    
+    return pointsEarned;
+}
+
+// Update the swap function to check for matches
+// Replace the existing swap logic in onTileClick with this:
+// Inside the isAdjacent block, replace the swap code with:
+
+// (Show code modification - I'll provide the complete modified function)

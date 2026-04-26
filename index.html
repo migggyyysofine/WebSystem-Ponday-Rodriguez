@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Match-3 Game</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Match-3 Game | Swap & Match</title>
     <style>
         * {
             margin: 0;
@@ -18,6 +18,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            padding: 20px;
         }
         
         .game-container {
@@ -26,6 +27,8 @@
             border-radius: 20px;
             padding: 20px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 600px;
+            width: 100%;
         }
         
         h1 {
@@ -39,110 +42,272 @@
             padding: 10px;
             background: #f0f0f0;
             border-radius: 10px;
+            font-weight: bold;
         }
+        
+        /* Game Grid Styles */
+        #game-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 50px);
+            gap: 5px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        
+        /* Tile Styles */
         .tile {
-    transition: all 0.1s ease;
-}
-
-.tile:hover {
-    transform: scale(1.05);
-    filter: brightness(1.1);
-}
-
-.tile:active {
-    transform: scale(0.95);
-}
-
-@keyframes pop {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.2); background-color: #ffd700; }
-    100% { transform: scale(1); }
-}
-
-.match-animation {
-    animation: pop 0.2s ease;
-}
-
-.status-message {
-    margin-top: 20px;
-    padding: 10px;
-    border-radius: 10px;
-    font-weight: bold;
-    transition: all 0.3s ease;
-}
-
-button {
-    margin-top: 20px;
-    padding: 10px 20px;
-    font-size: 16px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: transform 0.1s;
-}
-
-button:hover {
-    transform: scale(1.05);
-}
-
-button:active {
-    transform: scale(0.95);
-}
-@media (max-width: 600px) {
-    #game-grid {
-        grid-template-columns: repeat(8, 35px) !important;
-        gap: 3px !important;
-    }
-    
-    .tile, #game-grid div {
-        width: 35px !important;
-        height: 35px !important;
-        font-size: 20px !important;
-    }
-    
-    h1 { font-size: 24px; }
-    .score-board { font-size: 16px; }
-    button { padding: 8px 16px; font-size: 14px; }
-}
-
-@media (max-width: 400px) {
-    #game-grid {
-        grid-template-columns: repeat(8, 30px) !important;
-    }
-    
-    .tile, #game-grid div {
-        width: 30px !important;
-        height: 30px !important;
-        font-size: 16px !important;
-    }
-}
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 28px;
+            transition: all 0.1s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
+        .tile:hover {
+            transform: scale(1.05);
+            filter: brightness(1.1);
+        }
+        
+        .tile:active {
+            transform: scale(0.95);
+        }
+        
+        /* Selected Tile Highlight */
+        .tile.selected {
+            box-shadow: 0 0 0 3px gold, 0 0 0 6px orange;
+            transform: scale(0.98);
+        }
+        
+        /* Match Animation */
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); filter: brightness(1.3); }
+            100% { transform: scale(1); }
+        }
+        
+        .match-animation {
+            animation: pop 0.2s ease;
+        }
+        
+        /* Status Message */
+        .status-message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 10px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            background: #333;
+            color: white;
+        }
+        
+        /* Button Styles */
+        .button-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.1s;
+            font-weight: bold;
+        }
+        
+        button:hover {
+            transform: scale(1.05);
+        }
+        
+        button:active {
+            transform: scale(0.95);
+        }
+        
+        button.reset-btn {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        
+        button.menu-btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 600px) {
+            #game-grid {
+                grid-template-columns: repeat(8, 35px) !important;
+                gap: 3px !important;
+            }
+            
+            .tile {
+                width: 35px !important;
+                height: 35px !important;
+                font-size: 20px !important;
+            }
+            
+            h1 { font-size: 24px; }
+            .score-board { font-size: 16px; }
+            button { padding: 8px 16px; font-size: 14px; }
+            .game-container { padding: 15px; }
+        }
+        
+        @media (max-width: 400px) {
+            #game-grid {
+                grid-template-columns: repeat(8, 30px) !important;
+                gap: 2px !important;
+            }
+            
+            .tile {
+                width: 30px !important;
+                height: 30px !important;
+                font-size: 16px !important;
+            }
+        }
+        
+        /* Game Over Modal */
+        .game-over-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+        
+        .modal-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            color: white;
+            max-width: 400px;
+            margin: 20px;
+        }
+        
+        .modal-content h2 {
+            font-size: 36px;
+            margin-bottom: 20px;
+        }
+        
+        .modal-content p {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+        
+        .modal-content button {
+            margin-top: 10px;
+            background: white;
+            color: #667eea;
+        }
+        
+        /* Start Menu */
+        .start-menu {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .start-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            color: white;
+            max-width: 450px;
+            margin: 20px;
+        }
+        
+        .start-card h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: white;
+        }
+        
+        .start-card p {
+            font-size: 18px;
+            margin-bottom: 30px;
+        }
+        
+        .enter-hint {
+            font-size: 24px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+        }
+        
+        .enter-hint kbd {
+            background: white;
+            color: black;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        
+        .play-btn {
+            padding: 15px 40px;
+            font-size: 20px;
+            background: white;
+            color: #667eea;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
-    <!-- Start Menu -->
-<div id="startMenu" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; justify-content: center; align-items: center; z-index: 1000;">
-    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px; border-radius: 20px; text-align: center; color: white;">
-        <h1 style="font-size: 48px; margin-bottom: 20px;">🍬 MATCH-3</h1>
-        <p style="font-size: 18px; margin-bottom: 30px;">Swap adjacent tiles to match 3 or more!<br>Chain reactions = bonus points!</p>
-        <div style="font-size: 24px; margin-bottom: 30px; padding: 20px; background: rgba(255,255,255,0.2); border-radius: 10px;">
-            Press <kbd style="background: white; color: black; padding: 5px 10px; border-radius: 5px;">ENTER</kbd> to Start
+
+<!-- Start Menu -->
+<div id="startMenu" class="start-menu">
+    <div class="start-card">
+        <h1>🍬 MATCH-3</h1>
+        <p>Swap adjacent tiles to match 3 or more!<br>Chain reactions = bonus points!</p>
+        <div class="enter-hint">
+            Press <kbd>ENTER</kbd> to Start
         </div>
-        <button id="startButton" style="padding: 15px 40px; font-size: 20px;">▶ PLAY NOW</button>
+        <button class="play-btn" id="startButton">▶ PLAY NOW</button>
     </div>
 </div>
-    <div class="game-container">
-        <h1>🍬 Match-3 Game</h1>
-        <div class="score-board">
-            Score: <span id="score">0</span> | Target: <span id="target">1200</span>
-        </div>
-        <button onclick="location.reload()">🔄 New Game</button>
-        <div id="game-grid" style="display: grid; grid-template-columns: repeat(8, 50px); gap: 5px; justify-content: center;">
-            <!-- Grid will be generated by JavaScript -->
-        </div>
-        <button id="menuButton" style="margin-left: 10px;">🏠 Menu</button>
+
+<!-- Main Game Container -->
+<div class="game-container">
+    <h1>🍬 Match-3 Game</h1>
+    <div class="score-board">
+        Score: <span id="score">0</span> | Target: <span id="target">1200</span>
     </div>
-    <script src="game.js"></script>
-</body>
-</html>
+    
+    <div id="game-grid"></div>
+    
+    <div id="statusMessage" class="status-message">✨ Ready to play! ✨</div>
+    
+    <div class="button-group">
+        <button id="resetButton" class="reset-btn">🔄 New Game</button>
+        <button id="menuButton" class="menu-btn">🏠 Menu</button>
+    </div>
+</div>

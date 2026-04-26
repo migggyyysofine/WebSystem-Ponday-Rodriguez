@@ -19,7 +19,10 @@ function initGrid() {
     }
 }
 
-// Render the grid to HTML
+let selectedRow = -1;
+let selectedCol = -1;
+
+// Render the grid to HTML with click events
 function renderGrid() {
     const gridContainer = document.getElementById('game-grid');
     gridContainer.innerHTML = '';
@@ -38,7 +41,46 @@ function renderGrid() {
             tile.style.cursor = 'pointer';
             tile.style.fontSize = '30px';
             tile.style.transition = 'transform 0.1s';
+            
+            // Highlight selected tile
+            if(selectedRow === i && selectedCol === j) {
+                tile.style.border = '3px solid gold';
+                tile.style.transform = 'scale(0.95)';
+            }
+            
+            tile.addEventListener('click', () => onTileClick(i, j));
             gridContainer.appendChild(tile);
+        }
+    }
+}
+
+// Handle tile click
+function onTileClick(row, col) {
+    if(!gameActive) return;
+    
+    if(selectedRow === -1 && selectedCol === -1) {
+        // Select first tile
+        selectedRow = row;
+        selectedCol = col;
+        renderGrid();
+    } else {
+        // Check if tiles are adjacent
+        const isAdjacent = (Math.abs(selectedRow - row) + Math.abs(selectedCol - col)) === 1;
+        
+        if(isAdjacent) {
+            // Swap tiles
+            const temp = grid[selectedRow][selectedCol];
+            grid[selectedRow][selectedCol] = grid[row][col];
+            grid[row][col] = temp;
+            
+            selectedRow = -1;
+            selectedCol = -1;
+            renderGrid();
+        } else {
+            // Select new tile
+            selectedRow = row;
+            selectedCol = col;
+            renderGrid();
         }
     }
 }

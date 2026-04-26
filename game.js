@@ -271,20 +271,76 @@ function applyGravity() {
 
 // Modify the removeMatches function to call applyGravity
 // Add this updated version:
-function removeMatches(matches) {
-    if(matches.length === 0) return 0;
-    
-    const pointsEarned = matches.length * 10;
-    currentScore += pointsEarned;
-    document.getElementById('score').textContent = currentScore;
-    
-    // Clear matched tiles
-    for(let match of matches) {
-        grid[match.row][match.col] = -1;
-    }
+// Inside onTileClick, replace the match check block:
+if(matches.length > 0) {
+    await processCascade();
+    renderGrid();
+} else {
+    // Swap back if no match
+    const tempBack = grid[selectedRow][selectedCol];
+    grid[selectedRow][selectedCol] = grid[row][col];
+    grid[row][col] = tempBack;
+    alert('No match! Try again.');
+    renderGrid();
+}
     
     // Apply gravity to make tiles fall
     applyGravity();
     
     return pointsEarned;
+}
+// Cascade system - keep checking for matches after gravity
+async function processCascade() {
+    let totalPoints = 0;
+    let cascadeLevel = 1;
+    let hasMatches = true;
+    
+    while(hasMatches) {
+        const matches = checkMatches();
+        
+        if(matches.length > 0) {
+            const points = matches.length * 10;
+            currentScore += points;
+            totalPoints += points;
+            document.getElementById('score').textContent = currentScore;
+            
+            // Show cascade message
+            const statusDiv = document.getElementById('status') || createStatusDiv();
+            statusDiv.textContent = `Chain x${cascadeLevel}! +${points} points!`;
+            
+            // Clear matches
+            for(let match of matches) {
+                grid[match.row][match.col] = -1;
+            }
+            
+            // Apply gravity
+            applyGravity();
+            renderGrid();
+            
+            // Wait for visual effect
+            await new Promise(resolve => setTimeout(resolve, 200));
+            
+            cascadeLevel++;
+        } else {
+            hasMatches = false;
+        }
+    }
+    
+    return totalPoints;
+}
+
+// Helper to create status div if it doesn't exist
+function createStatusDiv() {
+    let statusDiv = document.getElementById('status');
+    if(!statusDiv) {
+        statusDiv = document.createElement('div');
+        statusDiv.id = 'status';
+        statusDiv.style.marginTop = '20px';
+        statusDiv.style.padding = '10px';
+        statusDiv.style.backgroundColor = '#333';
+        statusDiv.style.color = 'white';
+        statusDiv.style.borderRadius = '10px';
+        document.querySelector('.game-container').appendChild(statusDiv);
+    }
+    return statusDiv;
 }

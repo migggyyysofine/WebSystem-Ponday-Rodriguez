@@ -151,3 +151,60 @@ function testMatchDetection() {
     console.log(`Found ${matches.length} matching tiles`);
     return matches;
 }
+// Check for matches in the grid
+function checkMatches() {
+    let matches = [];
+    
+    // Check horizontal matches
+    for(let row = 0; row < ROWS; row++) {
+        let count = 1;
+        for(let col = 1; col < COLS; col++) {
+            if(grid[row][col] === grid[row][col-1]) {
+                count++;
+            } else {
+                if(count >= 3) {
+                    for(let i = 0; i < count; i++) {
+                        matches.push({row: row, col: col-1-i});
+                    }
+                }
+                count = 1;
+            }
+        }
+        if(count >= 3) {
+            for(let i = 0; i < count; i++) {
+                matches.push({row: row, col: COLS-1-i});
+            }
+        }
+    }
+    
+    // Check vertical matches
+    for(let col = 0; col < COLS; col++) {
+        let count = 1;
+        for(let row = 1; row < ROWS; row++) {
+            if(grid[row][col] === grid[row-1][col]) {
+                count++;
+            } else {
+                if(count >= 3) {
+                    for(let i = 0; i < count; i++) {
+                        matches.push({row: row-1-i, col: col});
+                    }
+                }
+                count = 1;
+            }
+        }
+        if(count >= 3) {
+            for(let i = 0; i < count; i++) {
+                matches.push({row: ROWS-1-i, col: col});
+            }
+        }
+    }
+    
+    return matches;
+}
+
+// Test match detection (temporary)
+function testMatchDetection() {
+    const matches = checkMatches();
+    console.log(`Found ${matches.length} matching tiles`);
+    return matches;
+}

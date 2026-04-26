@@ -344,3 +344,81 @@ function createStatusDiv() {
     }
     return statusDiv;
 }
+// Check if player has won
+function checkWin() {
+    if(currentScore >= TARGET_SCORE) {
+        gameActive = false;
+        const statusDiv = document.getElementById('status');
+        statusDiv.textContent = '🎉 VICTORY! You reached the target score! 🎉';
+        statusDiv.style.backgroundColor = '#4caf50';
+        showGameOverMessage(true);
+        return true;
+    }
+    return false;
+}
+
+// Check if any valid moves remain
+function hasValidMoves() {
+    // Try every possible swap to see if any match can be made
+    for(let row = 0; row < ROWS; row++) {
+        for(let col = 0; col < COLS; col++) {
+            // Try swapping right
+            if(col + 1 < COLS) {
+                swapAndTest(row, col, row, col + 1);
+                let matches = checkMatches();
+                swapAndTest(row, col, row, col + 1); // Swap back
+                if(matches.length > 0) return true;
+            }
+            
+            // Try swapping down
+            if(row + 1 < ROWS) {
+                swapAndTest(row, col, row + 1, col);
+                let matches = checkMatches();
+                swapAndTest(row, col, row + 1, col); // Swap back
+                if(matches.length > 0) return true;
+            }
+        }
+    }
+    return false;
+}
+
+// Helper function to swap and test
+function swapAndTest(row1, col1, row2, col2) {
+    const temp = grid[row1][col1];
+    grid[row1][col1] = grid[row2][col2];
+    grid[row2][col2] = temp;
+}
+
+// Show game over message
+function showGameOverMessage(isWin) {
+    const modal = document.createElement('div');
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100%';
+    modal.style.height = '100%';
+    modal.style.backgroundColor = 'rgba(0,0,0,0.8)';
+    modal.style.display = 'flex';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
+    modal.style.zIndex = '1000';
+    
+    const messageBox = document.createElement('div');
+    messageBox.style.backgroundColor = 'white';
+    messageBox.style.padding = '40px';
+    messageBox.style.borderRadius = '20px';
+    messageBox.style.textAlign = 'center';
+    
+    if(isWin) {
+        messageBox.innerHTML = `<h1>🏆 YOU WIN! 🏆</h1><p>Final Score: ${currentScore}</p><button onclick="location.reload()">Play Again</button>`;
+    } else {
+        messageBox.innerHTML = `<h1>💀 GAME OVER 💀</h1><p>No moves left!<br>Final Score: ${currentScore}</p><button onclick="location.reload()">Play Again</button>`;
+    }
+    
+    modal.appendChild(messageBox);
+    document.body.appendChild(modal);
+}
+
+// Add check after each cascade in processCascade
+// Add this line inside the while loop after updating score:
+// if(checkWin()) return totalPoints;

@@ -244,3 +244,47 @@ function removeMatches(matches) {
 // Inside the isAdjacent block, replace the swap code with:
 
 // (Show code modification - I'll provide the complete modified function)
+// Apply gravity to make tiles fall down
+function applyGravity() {
+    for(let col = 0; col < COLS; col++) {
+        const columnValues = [];
+        
+        // Collect non-empty tiles from bottom to top
+        for(let row = ROWS - 1; row >= 0; row--) {
+            if(grid[row][col] !== -1) {
+                columnValues.push(grid[row][col]);
+            }
+        }
+        
+        // Fill missing spots with new random tiles
+        while(columnValues.length < ROWS) {
+            columnValues.push(Math.floor(Math.random() * TILE_TYPES.length));
+        }
+        
+        // Put back in reverse order
+        columnValues.reverse();
+        for(let row = 0; row < ROWS; row++) {
+            grid[row][col] = columnValues[row];
+        }
+    }
+}
+
+// Modify the removeMatches function to call applyGravity
+// Add this updated version:
+function removeMatches(matches) {
+    if(matches.length === 0) return 0;
+    
+    const pointsEarned = matches.length * 10;
+    currentScore += pointsEarned;
+    document.getElementById('score').textContent = currentScore;
+    
+    // Clear matched tiles
+    for(let match of matches) {
+        grid[match.row][match.col] = -1;
+    }
+    
+    // Apply gravity to make tiles fall
+    applyGravity();
+    
+    return pointsEarned;
+}

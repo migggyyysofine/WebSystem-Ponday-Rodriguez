@@ -450,3 +450,18 @@ function showGameOverMessage(isWin) {
 // Add check after each cascade in processCascade
 // Add this line inside the while loop after updating score:
 // if(checkWin()) return totalPoints;
+// Add to game.js
+function returnToMenu() {
+    gameActive = false;
+    document.getElementById('startMenu').style.display = 'flex';
+    // Reset game state
+    initGrid();
+    currentScore = 0;
+    selectedRow = -1;
+    selectedCol = -1;
+    document.getElementById('score').textContent = currentScore;
+    renderGrid();
+}
+
+// Add event listener
+document.getElementById('menuButton').addEventListener('click', returnToMenu);

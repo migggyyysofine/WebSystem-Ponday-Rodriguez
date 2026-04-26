@@ -289,7 +289,7 @@ if(matches.length > 0) {
     
     return pointsEarned;
 }
-// Cascade system - keep checking for matches after gravity
+// Updated cascade system with multiplier
 async function processCascade() {
     let totalPoints = 0;
     let cascadeLevel = 1;
@@ -299,14 +299,33 @@ async function processCascade() {
         const matches = checkMatches();
         
         if(matches.length > 0) {
-            const points = matches.length * 10;
+            // Calculate points with multiplier
+            let multiplier = 1;
+            if(cascadeLevel === 1) multiplier = 1;
+            else if(cascadeLevel === 2) multiplier = 1.5;
+            else if(cascadeLevel === 3) multiplier = 2;
+            else multiplier = 2.5;
+            
+            const basePoints = matches.length * 10;
+            const points = Math.floor(basePoints * multiplier);
+            
             currentScore += points;
             totalPoints += points;
             document.getElementById('score').textContent = currentScore;
             
-            // Show cascade message
-            const statusDiv = document.getElementById('status') || createStatusDiv();
-            statusDiv.textContent = `Chain x${cascadeLevel}! +${points} points!`;
+            // Show cascade message with multiplier
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = `Chain x${cascadeLevel}! ${multiplier}x Multiplier! +${points} points!`;
+            statusDiv.style.backgroundColor = cascadeLevel >= 3 ? '#ff9800' : '#2196f3';
+            
+            // Add animation to matched tiles
+            for(let match of matches) {
+                const tileElements = document.querySelectorAll('#game-grid div');
+                const index = match.row * COLS + match.col;
+                if(tileElements[index]) {
+                    tileElements[index].classList.add('match-animation');
+                }
+            }
             
             // Clear matches
             for(let match of matches) {
@@ -318,12 +337,21 @@ async function processCascade() {
             renderGrid();
             
             // Wait for visual effect
-            await new Promise(resolve => setTimeout(resolve, 200));
+            await new Promise(resolve => setTimeout(resolve, 250));
             
             cascadeLevel++;
+            
+            // Check win condition
+            if(checkWin()) return totalPoints;
         } else {
             hasMatches = false;
         }
+    }
+    
+    // Check for no moves after cascade
+    if(!hasValidMoves() && currentScore < TARGET_SCORE) {
+        gameActive = false;
+        showGameOverMessage(false);
     }
     
     return totalPoints;

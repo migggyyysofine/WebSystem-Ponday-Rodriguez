@@ -465,3 +465,39 @@ function returnToMenu() {
 
 // Add event listener
 document.getElementById('menuButton').addEventListener('click', returnToMenu);
+// Sound effects system (using Web Audio API)
+let audioContext = null;
+
+function initAudio() {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+function playMatchSound() {
+    if(!audioContext) initAudio();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    oscillator.frequency.value = 440;
+    gainNode.gain.value = 0.1;
+    oscillator.start();
+    gainNode.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.5);
+    oscillator.stop(audioContext.currentTime + 0.5);
+}
+
+function playChainSound(chainLevel) {
+    if(!audioContext) initAudio();
+    const frequency = 440 + (chainLevel * 100);
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    oscillator.frequency.value = Math.min(frequency, 880);
+    gainNode.gain.value = 0.15;
+    oscillator.start();
+    gainNode.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.3);
+    oscillator.stop(audioContext.currentTime + 0.3);
+}
+
+// Call playMatchSound() when matches are found
+// Call playChainSound(cascadeLevel) during cascade in processCascade

@@ -31,22 +31,12 @@ function renderGrid() {
     for(let i = 0; i < ROWS; i++) {
         for(let j = 0; j < COLS; j++) {
             const tile = document.createElement('div');
+            tile.className = 'tile';
             tile.textContent = TILE_TYPES[grid[i][j]];
-            tile.style.width = '50px';
-            tile.style.height = '50px';
-            tile.style.display = 'flex';
-            tile.style.alignItems = 'center';
-            tile.style.justifyContent = 'center';
-            tile.style.backgroundColor = '#f0a3ff';
-            tile.style.borderRadius = '10px';
-            tile.style.cursor = 'pointer';
-            tile.style.fontSize = '30px';
-            tile.style.transition = 'transform 0.1s';
             
             // Highlight selected tile
             if(selectedRow === i && selectedCol === j) {
-                tile.style.border = '3px solid gold';
-                tile.style.transform = 'scale(0.95)';
+                tile.classList.add('selected');
             }
             
             tile.addEventListener('click', () => onTileClick(i, j));
@@ -141,7 +131,7 @@ function removeMatches(matches) {
     
     // Clear matched tiles
     for(let match of matches) {
-        grid[match.row][match.col] = -1; // Mark as empty
+        grid[match.row][match.col] = -1;
     }
     
     // Apply gravity
@@ -150,32 +140,27 @@ function removeMatches(matches) {
     return pointsEarned;
 }
 
-// Create status div if it doesn't exist
-function createStatusDiv() {
-    let statusDiv = document.getElementById('status');
-    if(!statusDiv) {
-        statusDiv = document.createElement('div');
-        statusDiv.id = 'status';
-        statusDiv.style.marginTop = '20px';
-        statusDiv.style.padding = '10px';
-        statusDiv.style.backgroundColor = '#333';
-        statusDiv.style.color = 'white';
-        statusDiv.style.borderRadius = '10px';
-        const container = document.querySelector('.game-container');
-        if(container) container.appendChild(statusDiv);
+// Update status message
+function updateStatusMessage(message, isError = false) {
+    const statusDiv = document.getElementById('statusMessage');
+    if(statusDiv) {
+        statusDiv.textContent = message;
+        if(isError) {
+            statusDiv.style.backgroundColor = '#f44336';
+            setTimeout(() => {
+                if(statusDiv) statusDiv.style.backgroundColor = '#333';
+            }, 1000);
+        } else {
+            statusDiv.style.backgroundColor = '#333';
+        }
     }
-    return statusDiv;
 }
 
 // Check if player has won
 function checkWin() {
     if(currentScore >= TARGET_SCORE) {
         gameActive = false;
-        const statusDiv = document.getElementById('status');
-        if(statusDiv) {
-            statusDiv.textContent = '🎉 VICTORY! You reached the target score! 🎉';
-            statusDiv.style.backgroundColor = '#4caf50';
-        }
+        updateStatusMessage('🎉 VICTORY! You reached the target score! 🎉');
         showGameOverMessage(true);
         return true;
     }
@@ -215,35 +200,36 @@ function hasValidMoves() {
 
 // Show game over message
 function showGameOverMessage(isWin) {
+    // Remove any existing modal first
+    const existingModal = document.querySelector('.game-over-modal');
+    if(existingModal) existingModal.remove();
+    
     const modal = document.createElement('div');
-    modal.style.position = 'fixed';
-    modal.style.top = '0';
-    modal.style.left = '0';
-    modal.style.width = '100%';
-    modal.style.height = '100%';
-    modal.style.backgroundColor = 'rgba(0,0,0,0.8)';
-    modal.style.display = 'flex';
-    modal.style.alignItems = 'center';
-    modal.style.justifyContent = 'center';
-    modal.style.zIndex = '1000';
+    modal.className = 'game-over-modal';
     
     const messageBox = document.createElement('div');
-    messageBox.style.backgroundColor = 'white';
-    messageBox.style.padding = '40px';
-    messageBox.style.borderRadius = '20px';
-    messageBox.style.textAlign = 'center';
+    messageBox.className = 'modal-content';
     
     if(isWin) {
-        messageBox.innerHTML = `<h1>🏆 YOU WIN! 🏆</h1><p>Final Score: ${currentScore}</p><button onclick="location.reload()">Play Again</button>`;
+        messageBox.innerHTML = `
+            <h2>🏆 YOU WIN! 🏆</h2>
+            <p>Final Score: ${currentScore} / ${TARGET_SCORE}</p>
+            <button onclick="location.reload()">Play Again</button>
+        `;
     } else {
-        messageBox.innerHTML = `<h1>💀 GAME OVER 💀</h1><p>No moves left!<br>Final Score: ${currentScore}</p><button onclick="location.reload()">Play Again</button>`;
+        messageBox.innerHTML = `
+            <h2>💀 GAME OVER 💀</h2>
+            <p>No moves left!</p>
+            <p>Final Score: ${currentScore}</p>
+            <button onclick="location.reload()">Play Again</button>
+        `;
     }
     
     modal.appendChild(messageBox);
     document.body.appendChild(modal);
 }
 
-// Updated cascade system with multiplier
+// Cascade system with multiplier
 async function processCascade() {
     let totalPoints = 0;
     let cascadeLevel = 1;
@@ -267,17 +253,18 @@ async function processCascade() {
             totalPoints += points;
             document.getElementById('score').textContent = currentScore;
             
-            // Show cascade message with multiplier
-            const statusDiv = createStatusDiv();
-            statusDiv.textContent = `Chain x${cascadeLevel}! ${multiplier}x Multiplier! +${points} points!`;
-            statusDiv.style.backgroundColor = cascadeLevel >= 3 ? '#ff9800' : '#2196f3';
+            // Show cascade message
+            updateStatusMessage(`Chain x${cascadeLevel}! ${multiplier}x Multiplier! +${points} points!`);
             
             // Add animation to matched tiles
+            const tileElements = document.querySelectorAll('#game-grid .tile');
             for(let match of matches) {
-                const tileElements = document.querySelectorAll('#game-grid div');
                 const index = match.row * COLS + match.col;
                 if(tileElements[index]) {
                     tileElements[index].classList.add('match-animation');
+                    setTimeout(() => {
+                        if(tileElements[index]) tileElements[index].classList.remove('match-animation');
+                    }, 200);
                 }
             }
             
@@ -320,6 +307,7 @@ async function onTileClick(row, col) {
         selectedRow = row;
         selectedCol = col;
         renderGrid();
+        updateStatusMessage(`👉 Selected ${TILE_TYPES[grid[row][col]]}`);
     } else {
         const isAdjacent = (Math.abs(selectedRow - row) + Math.abs(selectedCol - col)) === 1;
         
@@ -344,12 +332,7 @@ async function onTileClick(row, col) {
                 grid[selectedRow][selectedCol] = grid[row][col];
                 grid[row][col] = tempBack;
                 
-                const statusDiv = createStatusDiv();
-                statusDiv.textContent = '❌ No match! Try again.';
-                statusDiv.style.backgroundColor = '#f44336';
-                setTimeout(() => {
-                    if(statusDiv) statusDiv.style.backgroundColor = '#333';
-                }, 1000);
+                updateStatusMessage('❌ No match! Try again.', true);
                 renderGrid();
             }
             
@@ -362,65 +345,84 @@ async function onTileClick(row, col) {
             selectedRow = row;
             selectedCol = col;
             renderGrid();
+            updateStatusMessage(`👉 Selected ${TILE_TYPES[grid[row][col]]}`);
         }
     }
 }
 
-// Return to menu function
-function returnToMenu() {
-    gameActive = false;
-    const startMenu = document.getElementById('startMenu');
-    if(startMenu) startMenu.style.display = 'flex';
-    // Reset game state
-    initGrid();
-    currentScore = 0;
+// Reset game function
+function resetGame() {
+    if(isProcessing) return;
+    gameActive = true;
     selectedRow = -1;
     selectedCol = -1;
     isProcessing = false;
+    currentScore = 0;
     document.getElementById('score').textContent = currentScore;
-    renderGrid();
-}
-
-// Start the game
-function startGame() {
     initGrid();
     renderGrid();
-    document.getElementById('score').textContent = currentScore;
-    document.getElementById('target').textContent = TARGET_SCORE;
+    updateStatusMessage('✨ Game reset! Good luck! ✨');
+}
+
+// Return to menu function
+function returnToMenu() {
+    if(isProcessing) return;
+    gameActive = false;
+    const startMenu = document.getElementById('startMenu');
+    if(startMenu) startMenu.classList.remove('hidden');
+    resetGame();
+}
+
+// Start the game from menu
+function startGame() {
+    const startMenu = document.getElementById('startMenu');
+    if(startMenu) startMenu.classList.add('hidden');
     gameActive = true;
-    
-    // Create status div
-    createStatusDiv();
+    selectedRow = -1;
+    selectedCol = -1;
+    isProcessing = false;
+    currentScore = 0;
+    document.getElementById('score').textContent = currentScore;
+    initGrid();
+    renderGrid();
+    updateStatusMessage('✨ Game started! Swap tiles to match 3+! ✨');
 }
 
 // Initialize event listeners when page loads
 document.addEventListener('DOMContentLoaded', function() {
-    startGame();
+    // Initialize grid but don't start game yet
+    initGrid();
+    renderGrid();
     
-    // Add menu button listener if it exists
+    // Add reset button listener
+    const resetButton = document.getElementById('resetButton');
+    if(resetButton) {
+        resetButton.addEventListener('click', resetGame);
+    }
+    
+    // Add menu button listener
     const menuButton = document.getElementById('menuButton');
     if(menuButton) {
         menuButton.addEventListener('click', returnToMenu);
     }
     
-    // Add start button listener if it exists
+    // Add start button listener
     const startButton = document.getElementById('startButton');
     if(startButton) {
-        startButton.addEventListener('click', function() {
-            const startMenu = document.getElementById('startMenu');
-            if(startMenu) startMenu.style.display = 'none';
-            startGame();
-        });
+        startButton.addEventListener('click', startGame);
     }
     
     // Enter key to start
     document.addEventListener('keydown', function(e) {
         if(e.key === 'Enter') {
             const startMenu = document.getElementById('startMenu');
-            if(startMenu && startMenu.style.display !== 'none') {
-                startMenu.style.display = 'none';
+            if(startMenu && !startMenu.classList.contains('hidden')) {
                 startGame();
             }
         }
     });
+    
+    // Game is not active until menu is closed
+    gameActive = false;
+    updateStatusMessage('🌟 Press ENTER to start! 🌟');
 });

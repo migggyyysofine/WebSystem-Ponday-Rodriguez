@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Match-3 Game | Swap & Match</title>
+    <title>Match-3 Game | Progressive Levels</title>
     <style>
         * {
             margin: 0;
@@ -45,7 +45,13 @@
             font-weight: bold;
         }
         
-        /* Game Grid Styles */
+        .level-info {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #764ba2;
+            font-weight: bold;
+        }
+        
         #game-grid {
             display: grid;
             grid-template-columns: repeat(8, 50px);
@@ -54,7 +60,6 @@
             margin: 20px 0;
         }
         
-        /* Tile Styles */
         .tile {
             width: 50px;
             height: 50px;
@@ -78,13 +83,11 @@
             transform: scale(0.95);
         }
         
-        /* Selected Tile Highlight */
         .tile.selected {
             box-shadow: 0 0 0 3px gold, 0 0 0 6px orange;
             transform: scale(0.98);
         }
         
-        /* Match Animation */
         @keyframes pop {
             0% { transform: scale(1); }
             50% { transform: scale(1.2); filter: brightness(1.3); }
@@ -95,18 +98,15 @@
             animation: pop 0.2s ease;
         }
         
-        /* Status Message */
         .status-message {
             margin-top: 15px;
             padding: 10px;
             border-radius: 10px;
             font-weight: bold;
-            transition: all 0.3s ease;
             background: #333;
             color: white;
         }
         
-        /* Button Styles */
         .button-group {
             display: flex;
             gap: 10px;
@@ -122,16 +122,11 @@
             border: none;
             border-radius: 10px;
             cursor: pointer;
-            transition: transform 0.1s;
             font-weight: bold;
         }
         
         button:hover {
             transform: scale(1.05);
-        }
-        
-        button:active {
-            transform: scale(0.95);
         }
         
         button.reset-btn {
@@ -142,23 +137,19 @@
             background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
         }
         
-        /* Responsive Design */
         @media (max-width: 600px) {
             #game-grid {
                 grid-template-columns: repeat(8, 35px) !important;
                 gap: 3px !important;
             }
-            
             .tile {
                 width: 35px !important;
                 height: 35px !important;
                 font-size: 20px !important;
             }
-            
             h1 { font-size: 24px; }
             .score-board { font-size: 16px; }
             button { padding: 8px 16px; font-size: 14px; }
-            .game-container { padding: 15px; }
         }
         
         @media (max-width: 400px) {
@@ -166,7 +157,6 @@
                 grid-template-columns: repeat(8, 30px) !important;
                 gap: 2px !important;
             }
-            
             .tile {
                 width: 30px !important;
                 height: 30px !important;
@@ -174,7 +164,6 @@
             }
         }
         
-        /* Menu Styles - Fixed to be VISIBLE and above game */
         .start-menu {
             position: fixed;
             top: 0;
@@ -187,7 +176,6 @@
             justify-content: center;
             align-items: center;
             z-index: 1000;
-            transition: all 0.3s ease;
         }
         
         .start-card {
@@ -225,7 +213,6 @@
             color: #555;
             font-size: 18px;
             margin: 20px 0;
-            line-height: 1.5;
         }
         
         .enter-hint {
@@ -234,7 +221,6 @@
             border-radius: 30px;
             margin: 20px auto;
             display: inline-block;
-            width: auto;
             font-size: 14px;
             color: #666;
         }
@@ -254,28 +240,117 @@
             padding: 14px 32px;
             border-radius: 40px;
             margin-top: 20px;
-            box-shadow: 0 8px 18px rgba(102,126,234,0.4);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        
-        .play-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 12px 24px rgba(102,126,234,0.6);
         }
         
         .hidden-menu {
             display: none !important;
         }
         
-        /* When game is active menu hidden, game visible */
-        body.menu-active .game-container {
-            filter: blur(0px);
+        .level-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(12px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+        
+        .level-modal.hidden-modal {
+            display: none;
+        }
+        
+        .level-card {
+            background: linear-gradient(145deg, #ffffff, #f0f0ff);
+            border-radius: 48px;
+            padding: 40px 32px;
+            text-align: center;
+            max-width: 400px;
+            width: 85%;
+            box-shadow: 0 30px 50px rgba(0,0,0,0.5);
+            animation: bounceIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        
+        @keyframes bounceIn {
+            0% {
+                transform: scale(0.3);
+                opacity: 0;
+            }
+            80% {
+                transform: scale(1.05);
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        
+        .level-card h2 {
+            font-size: 36px;
+            color: #f5576c;
+            margin-bottom: 16px;
+        }
+        
+        .level-card .level-badge {
+            font-size: 64px;
+            margin: 20px 0;
+        }
+        
+        .level-card p {
+            font-size: 20px;
+            color: #333;
+            margin: 15px 0;
+        }
+        
+        .level-card .next-target {
+            font-size: 28px;
+            font-weight: bold;
+            color: #667eea;
+            background: #e8eaff;
+            display: inline-block;
+            padding: 8px 20px;
+            border-radius: 40px;
+            margin: 15px 0;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 25px;
+        }
+        
+        .modal-buttons button {
+            padding: 12px 24px;
+            font-size: 18px;
+            border: none;
+            border-radius: 40px;
+            cursor: pointer;
+        }
+        
+        .continue-btn {
+            background: linear-gradient(135deg, #11998e, #38ef7d);
+            color: white;
+        }
+        
+        .menu-modal-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        .level-up-confetti {
+            position: fixed;
+            pointer-events: none;
+            z-index: 1999;
         }
     </style>
 </head>
 <body>
 
-<!-- Main Menu Overlay (visible by default) -->
 <div id="startMenu" class="start-menu">
     <div class="start-card">
         <h1>🍬 MATCH-3</h1>
@@ -287,9 +362,26 @@
     </div>
 </div>
 
-<!-- Main Game Container (initially visible but gameplay starts only after menu closed) -->
+<div id="levelModal" class="level-modal hidden-modal">
+    <div class="level-card">
+        <div class="level-badge">🏆🎉</div>
+        <h2>POINT TARGET REACHED!</h2>
+        <p id="levelCompleteMsg">You completed Level 1!</p>
+        <div class="next-target">
+            Next Goal: <span id="nextTargetSpan">2000</span> points
+        </div>
+        <div class="modal-buttons">
+            <button id="continueGameBtn" class="continue-btn">▶ CONTINUE</button>
+            <button id="menuFromModalBtn" class="menu-modal-btn">🏠 MENU</button>
+        </div>
+    </div>
+</div>
+
 <div class="game-container">
     <h1>🍬 Match-3 Game</h1>
+    <div class="level-info">
+        🌟 LEVEL <span id="levelNumber">1</span> 🌟
+    </div>
     <div class="score-board">
         Score: <span id="score">0</span> | Target: <span id="target">1200</span>
     </div>

@@ -1,428 +1,463 @@
-// Game configuration
+// game.js - Complete Match-3 Game Logic
+
+// ------------------------------
+// GAME STATE VARIABLES
+// ------------------------------
 const ROWS = 8;
 const COLS = 8;
-const TARGET_SCORE = 1200;
-const TILE_TYPES = ['⭐', '🍀', '❤️', '💎', '🪄', '🔥'];
-
-let grid = [];
+let board = [];
 let currentScore = 0;
-let gameActive = true;
-let selectedRow = -1;
-let selectedCol = -1;
-let isProcessing = false;
+let targetScore = 1200;
+let selectedRow = -1, selectedCol = -1;
+let isProcessing = false;    // Prevents clicks during match/reset/refill
+let gameActive = false;      // Game logic only runs when menu is closed AND game is initialized
 
-// Initialize the game grid
-function initGrid() {
-    grid = [];
-    for(let i = 0; i < ROWS; i++) {
-        grid[i] = [];
-        for(let j = 0; j < COLS; j++) {
-            grid[i][j] = Math.floor(Math.random() * TILE_TYPES.length);
-        }
-    }
+// DOM Elements
+const menuOverlay = document.getElementById('startMenu');
+const gameContainer = document.querySelector('.game-container');
+const gridContainer = document.getElementById('game-grid');
+const scoreSpan = document.getElementById('score');
+const targetSpan = document.getElementById('target');
+const statusDiv = document.getElementById('statusMessage');
+const resetBtn = document.getElementById('resetButton');
+const menuBtn = document.getElementById('menuButton');
+const startBtn = document.getElementById('startButton');
+
+// Candy types (emoji based)
+const CANDIES = ['🍎', '🍊', '🍇', '🍒', '🍓', '🍉'];
+
+// Helper: random candy
+function randomCandy() {
+    return CANDIES[Math.floor(Math.random() * CANDIES.length)];
 }
 
-// Render the grid to HTML with click events
-function renderGrid() {
-    const gridContainer = document.getElementById('game-grid');
-    if(!gridContainer) return;
-    gridContainer.innerHTML = '';
-    
-    for(let i = 0; i < ROWS; i++) {
-        for(let j = 0; j < COLS; j++) {
-            const tile = document.createElement('div');
-            tile.className = 'tile';
-            tile.textContent = TILE_TYPES[grid[i][j]];
-            
-            // Highlight selected tile
-            if(selectedRow === i && selectedCol === j) {
-                tile.classList.add('selected');
-            }
-            
-            tile.addEventListener('click', () => onTileClick(i, j));
-            gridContainer.appendChild(tile);
-        }
-    }
+// Initialize fresh board (with no initial matches)
+function createEmptyBoard() {
+    return Array(ROWS).fill().map(() => Array(COLS).fill().map(() => randomCandy()));
 }
 
-// Check for matches in the grid
-function checkMatches() {
-    let matches = [];
-    
-    // Check horizontal matches
-    for(let row = 0; row < ROWS; row++) {
-        let count = 1;
-        for(let col = 1; col < COLS; col++) {
-            if(grid[row][col] === grid[row][col-1]) {
-                count++;
+// Remove matches and resolve until stable
+function getAllMatches(boardData) {
+    const matches = [];
+    // Horizontal matches
+    for (let r = 0; r < ROWS; r++) {
+        let len = 1;
+        for (let c = 1; c <= COLS; c++) {
+            if (c < COLS && boardData[r][c] === boardData[r][c-1]) {
+                len++;
             } else {
-                if(count >= 3) {
-                    for(let i = 0; i < count; i++) {
-                        matches.push({row: row, col: col-1-i});
+                if (len >= 3) {
+                    for (let i = c - len; i < c; i++) {
+                        matches.push([r, i]);
                     }
                 }
-                count = 1;
-            }
-        }
-        if(count >= 3) {
-            for(let i = 0; i < count; i++) {
-                matches.push({row: row, col: COLS-1-i});
+                len = 1;
             }
         }
     }
-    
-    // Check vertical matches
-    for(let col = 0; col < COLS; col++) {
-        let count = 1;
-        for(let row = 1; row < ROWS; row++) {
-            if(grid[row][col] === grid[row-1][col]) {
-                count++;
+    // Vertical matches
+    for (let c = 0; c < COLS; c++) {
+        let len = 1;
+        for (let r = 1; r <= ROWS; r++) {
+            if (r < ROWS && boardData[r][c] === boardData[r-1][c]) {
+                len++;
             } else {
-                if(count >= 3) {
-                    for(let i = 0; i < count; i++) {
-                        matches.push({row: row-1-i, col: col});
+                if (len >= 3) {
+                    for (let i = r - len; i < r; i++) {
+                        matches.push([i, c]);
                     }
                 }
-                count = 1;
-            }
-        }
-        if(count >= 3) {
-            for(let i = 0; i < count; i++) {
-                matches.push({row: ROWS-1-i, col: col});
+                len = 1;
             }
         }
     }
-    
     return matches;
 }
 
-// Apply gravity to make tiles fall down
-function applyGravity() {
-    for(let col = 0; col < COLS; col++) {
+// Apply gravity and refill top with random candies
+function applyGravityAndRefill(boardData) {
+    for (let c = 0; c < COLS; c++) {
         const columnValues = [];
-        
-        // Collect non-empty tiles from bottom to top
-        for(let row = ROWS - 1; row >= 0; row--) {
-            if(grid[row][col] !== -1) {
-                columnValues.push(grid[row][col]);
+        for (let r = ROWS-1; r >= 0; r--) {
+            if (boardData[r][c] !== null) {
+                columnValues.push(boardData[r][c]);
             }
         }
-        
-        // Fill missing spots with new random tiles
-        while(columnValues.length < ROWS) {
-            columnValues.push(Math.floor(Math.random() * TILE_TYPES.length));
+        while (columnValues.length < ROWS) {
+            columnValues.push(randomCandy());
         }
-        
-        // Put back in reverse order
         columnValues.reverse();
-        for(let row = 0; row < ROWS; row++) {
-            grid[row][col] = columnValues[row];
+        for (let r = 0; r < ROWS; r++) {
+            boardData[r][c] = columnValues[r];
         }
     }
 }
 
-// Remove matched tiles and add score
-function removeMatches(matches) {
-    if(matches.length === 0) return 0;
+// Clear matches and return total cleared count
+function clearMatchesAndScore(boardData, addScore = true) {
+    const matches = getAllMatches(boardData);
+    if (matches.length === 0) return 0;
     
-    const pointsEarned = matches.length * 10;
-    currentScore += pointsEarned;
-    document.getElementById('score').textContent = currentScore;
-    
-    // Clear matched tiles
-    for(let match of matches) {
-        grid[match.row][match.col] = -1;
+    // Remove matched positions (set to null)
+    for (let [r, c] of matches) {
+        boardData[r][c] = null;
     }
     
-    // Apply gravity
-    applyGravity();
+    // Apply gravity and refill
+    applyGravityAndRefill(boardData);
     
-    return pointsEarned;
+    // Add score: each matched tile gives 10 points
+    if (addScore) {
+        const points = matches.length * 10;
+        currentScore += points;
+        updateScoreUI();
+        showStatusMessage(`+${points} points! Chain reaction!`, 800);
+    }
+    return matches.length;
 }
 
-// Update status message
-function updateStatusMessage(message, isError = false) {
-    const statusDiv = document.getElementById('statusMessage');
-    if(statusDiv) {
-        statusDiv.textContent = message;
-        if(isError) {
-            statusDiv.style.backgroundColor = '#f44336';
-            setTimeout(() => {
-                if(statusDiv) statusDiv.style.backgroundColor = '#333';
-            }, 1000);
-        } else {
-            statusDiv.style.backgroundColor = '#333';
+// Clear matches repeatedly until stable (and accumulate score)
+async function settleMatchesAndRefill(animate = true) {
+    let anyCleared = false;
+    while (true) {
+        const matches = getAllMatches(board);
+        if (matches.length === 0) break;
+        anyCleared = true;
+        // mark matched for animation (visual pop)
+        if (animate) await animateMatches(matches);
+        // clear matches and add score
+        clearMatchesAndScore(board, true);
+        if (animate) await delay(120);
+    }
+    if (anyCleared) {
+        updateBoardUI();
+        checkWinCondition();
+    }
+    return anyCleared;
+}
+
+// Visual animation for matches
+async function animateMatches(matches) {
+    const tiles = document.querySelectorAll('.tile');
+    const matchSet = new Set(matches.map(m => `${m[0]},${m[1]}`));
+    for (let i = 0; i < tiles.length; i++) {
+        const tile = tiles[i];
+        const row = parseInt(tile.getAttribute('data-row'));
+        const col = parseInt(tile.getAttribute('data-col'));
+        if (matchSet.has(`${row},${col}`)) {
+            tile.classList.add('match-animation');
         }
     }
+    await delay(180);
+    for (let i = 0; i < tiles.length; i++) {
+        tiles[i].classList.remove('match-animation');
+    }
 }
 
-// Check if player has won
-function checkWin() {
-    if(currentScore >= TARGET_SCORE) {
+function delay(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+// Update entire grid UI from board array
+function updateBoardUI() {
+    if (!gridContainer) return;
+    const tiles = document.querySelectorAll('.tile');
+    for (let i = 0; i < tiles.length; i++) {
+        const tile = tiles[i];
+        const row = parseInt(tile.getAttribute('data-row'));
+        const col = parseInt(tile.getAttribute('data-col'));
+        tile.textContent = board[row][col];
+        tile.classList.remove('selected');
+    }
+    // clear selection highlight
+    selectedRow = -1;
+    selectedCol = -1;
+}
+
+// Render grid completely
+function renderGrid() {
+    gridContainer.innerHTML = '';
+    for (let i = 0; i < ROWS; i++) {
+        for (let j = 0; j < COLS; j++) {
+            const tile = document.createElement('div');
+            tile.className = 'tile';
+            tile.textContent = board[i][j];
+            tile.setAttribute('data-row', i);
+            tile.setAttribute('data-col', j);
+            tile.addEventListener('click', (function(row, col) {
+                return function() { onTileClick(row, col); };
+            })(i, j));
+            gridContainer.appendChild(tile);
+        }
+    }
+    // Reset selected highlight
+    selectedRow = -1;
+    selectedCol = -1;
+}
+
+function updateScoreUI() {
+    scoreSpan.textContent = currentScore;
+}
+
+function showStatusMessage(msg, duration = 1500) {
+    statusDiv.textContent = msg;
+    if (duration > 0) {
+        setTimeout(() => {
+            if (statusDiv.textContent === msg) {
+                statusDiv.textContent = gameActive ? "✨ Swap tiles! ✨" : "Game not active. Start from Menu.";
+            }
+        }, duration);
+    }
+}
+
+function checkWinCondition() {
+    if (currentScore >= targetScore && gameActive) {
+        showStatusMessage("🎉 YOU WIN! 🎉 Great matching!", 3000);
         gameActive = false;
-        updateStatusMessage('🎉 VICTORY! You reached the target score! 🎉');
-        showGameOverMessage(true);
+        isProcessing = true;
+        setTimeout(() => {
+            statusDiv.textContent = "🏆 VICTORY! Press New Game or Menu 🏆";
+            isProcessing = false;
+        }, 500);
+    }
+}
+
+// Swap logic
+async function trySwap(r1, c1, r2, c2) {
+    if (!gameActive) {
+        showStatusMessage("Game not started! Click Menu & Start", 1000);
+        return false;
+    }
+    if (isProcessing) return false;
+    
+    // Swap temporarily
+    const temp = board[r1][c1];
+    board[r1][c1] = board[r2][c2];
+    board[r2][c2] = temp;
+    updateBoardUI();
+    
+    // Check for any matches after swap
+    const matches = getAllMatches(board);
+    if (matches.length > 0) {
+        // Valid swap!
+        isProcessing = true;
+        await animateMatches(matches);
+        clearMatchesAndScore(board, true);
+        updateBoardUI();
+        await settleMatchesAndRefill(true);
+        isProcessing = false;
         return true;
-    }
-    return false;
-}
-
-// Helper function to swap and test
-function swapAndTest(row1, col1, row2, col2) {
-    const temp = grid[row1][col1];
-    grid[row1][col1] = grid[row2][col2];
-    grid[row2][col2] = temp;
-}
-
-// Check if any valid moves remain
-function hasValidMoves() {
-    for(let row = 0; row < ROWS; row++) {
-        for(let col = 0; col < COLS; col++) {
-            // Try swapping right
-            if(col + 1 < COLS) {
-                swapAndTest(row, col, row, col + 1);
-                let matches = checkMatches();
-                swapAndTest(row, col, row, col + 1);
-                if(matches.length > 0) return true;
-            }
-            
-            // Try swapping down
-            if(row + 1 < ROWS) {
-                swapAndTest(row, col, row + 1, col);
-                let matches = checkMatches();
-                swapAndTest(row, col, row + 1, col);
-                if(matches.length > 0) return true;
-            }
-        }
-    }
-    return false;
-}
-
-// Show game over message
-function showGameOverMessage(isWin) {
-    // Remove any existing modal first
-    const existingModal = document.querySelector('.game-over-modal');
-    if(existingModal) existingModal.remove();
-    
-    const modal = document.createElement('div');
-    modal.className = 'game-over-modal';
-    
-    const messageBox = document.createElement('div');
-    messageBox.className = 'modal-content';
-    
-    if(isWin) {
-        messageBox.innerHTML = `
-            <h2>🏆 YOU WIN! 🏆</h2>
-            <p>Final Score: ${currentScore} / ${TARGET_SCORE}</p>
-            <button onclick="location.reload()">Play Again</button>
-        `;
     } else {
-        messageBox.innerHTML = `
-            <h2>💀 GAME OVER 💀</h2>
-            <p>No moves left!</p>
-            <p>Final Score: ${currentScore}</p>
-            <button onclick="location.reload()">Play Again</button>
-        `;
+        // Invalid swap: revert
+        const tempBack = board[r1][c1];
+        board[r1][c1] = board[r2][c2];
+        board[r2][c2] = tempBack;
+        updateBoardUI();
+        showStatusMessage("❌ No match! Swap again", 600);
+        return false;
     }
-    
-    modal.appendChild(messageBox);
-    document.body.appendChild(modal);
 }
 
-// Cascade system with multiplier
-async function processCascade() {
-    let totalPoints = 0;
-    let cascadeLevel = 1;
-    let hasMatches = true;
-    
-    while(hasMatches) {
-        const matches = checkMatches();
-        
-        if(matches.length > 0) {
-            // Calculate points with multiplier
-            let multiplier = 1;
-            if(cascadeLevel === 1) multiplier = 1;
-            else if(cascadeLevel === 2) multiplier = 1.5;
-            else if(cascadeLevel === 3) multiplier = 2;
-            else multiplier = 2.5;
-            
-            const basePoints = matches.length * 10;
-            const points = Math.floor(basePoints * multiplier);
-            
-            currentScore += points;
-            totalPoints += points;
-            document.getElementById('score').textContent = currentScore;
-            
-            // Show cascade message
-            updateStatusMessage(`Chain x${cascadeLevel}! ${multiplier}x Multiplier! +${points} points!`);
-            
-            // Add animation to matched tiles
-            const tileElements = document.querySelectorAll('#game-grid .tile');
-            for(let match of matches) {
-                const index = match.row * COLS + match.col;
-                if(tileElements[index]) {
-                    tileElements[index].classList.add('match-animation');
-                    setTimeout(() => {
-                        if(tileElements[index]) tileElements[index].classList.remove('match-animation');
-                    }, 200);
-                }
-            }
-            
-            // Clear matches
-            for(let match of matches) {
-                grid[match.row][match.col] = -1;
-            }
-            
-            // Apply gravity
-            applyGravity();
-            renderGrid();
-            
-            // Wait for visual effect
-            await new Promise(resolve => setTimeout(resolve, 250));
-            
-            cascadeLevel++;
-            
-            // Check win condition
-            if(checkWin()) return totalPoints;
-        } else {
-            hasMatches = false;
-        }
+// Tile click handler
+function onTileClick(row, col) {
+    if (!gameActive) {
+        showStatusMessage("💡 Open menu and press PLAY to start game!", 1200);
+        return;
+    }
+    if (isProcessing) {
+        showStatusMessage("⏳ Processing... Wait", 500);
+        return;
     }
     
-    // Check for no moves after cascade
-    if(!hasValidMoves() && currentScore < TARGET_SCORE) {
-        gameActive = false;
-        showGameOverMessage(false);
-    }
-    
-    return totalPoints;
-}
-
-// Handle tile click
-async function onTileClick(row, col) {
-    if(!gameActive || isProcessing) return;
-    
-    if(selectedRow === -1 && selectedCol === -1) {
-        // Select first tile
+    if (selectedRow === -1) {
+        // First selection
         selectedRow = row;
         selectedCol = col;
-        renderGrid();
-        updateStatusMessage(`👉 Selected ${TILE_TYPES[grid[row][col]]}`);
+        highlightTile(row, col, true);
+        showStatusMessage(`Selected ${board[row][col]}`, 800);
     } else {
-        const isAdjacent = (Math.abs(selectedRow - row) + Math.abs(selectedCol - col)) === 1;
+        // Already selected a tile
+        const prevRow = selectedRow, prevCol = selectedCol;
+        const isAdjacent = (Math.abs(prevRow - row) + Math.abs(prevCol - col)) === 1;
         
-        if(isAdjacent) {
-            isProcessing = true;
-            
-            // Swap tiles
-            const temp = grid[selectedRow][selectedCol];
-            grid[selectedRow][selectedCol] = grid[row][col];
-            grid[row][col] = temp;
-            
-            renderGrid();
-            
-            // Check for matches
-            const matches = checkMatches();
-            if(matches.length > 0) {
-                await processCascade();
-                renderGrid();
-            } else {
-                // Swap back if no match
-                const tempBack = grid[selectedRow][selectedCol];
-                grid[selectedRow][selectedCol] = grid[row][col];
-                grid[row][col] = tempBack;
-                
-                updateStatusMessage('❌ No match! Try again.', true);
-                renderGrid();
-            }
-            
-            selectedRow = -1;
-            selectedCol = -1;
-            isProcessing = false;
-            renderGrid();
+        if (isAdjacent) {
+            // attempt swap
+            highlightTile(prevRow, prevCol, false);
+            trySwap(prevRow, prevCol, row, col).finally(() => {
+                // after swap or fail, clear selected highlight
+                clearSelectedHighlight();
+                selectedRow = -1;
+                selectedCol = -1;
+            });
         } else {
-            // Select new tile
+            // Not adjacent: select new tile
+            highlightTile(prevRow, prevCol, false);
             selectedRow = row;
             selectedCol = col;
-            renderGrid();
-            updateStatusMessage(`👉 Selected ${TILE_TYPES[grid[row][col]]}`);
+            highlightTile(row, col, true);
+            showStatusMessage(`Selected ${board[row][col]}`, 800);
         }
     }
 }
 
-// Reset game function
-function resetGame() {
-    if(isProcessing) return;
-    gameActive = true;
-    selectedRow = -1;
-    selectedCol = -1;
-    isProcessing = false;
-    currentScore = 0;
-    document.getElementById('score').textContent = currentScore;
-    initGrid();
-    renderGrid();
-    updateStatusMessage('✨ Game reset! Good luck! ✨');
+function highlightTile(row, col, highlight) {
+    const tiles = document.querySelectorAll('.tile');
+    for (let tile of tiles) {
+        const r = parseInt(tile.getAttribute('data-row'));
+        const c = parseInt(tile.getAttribute('data-col'));
+        if (r === row && c === col) {
+            if (highlight) tile.classList.add('selected');
+            else tile.classList.remove('selected');
+        }
+    }
 }
 
-// Return to menu function
-function returnToMenu() {
-    if(isProcessing) return;
+function clearSelectedHighlight() {
+    const tiles = document.querySelectorAll('.tile');
+    tiles.forEach(t => t.classList.remove('selected'));
+}
+
+// Reset full game state (score, fresh board)
+async function resetGameAndStart() {
+    if (isProcessing) return;
+    isProcessing = true;
+    currentScore = 0;
+    updateScoreUI();
+    board = createEmptyBoard();
+    // Remove any initial matches by settling
+    renderGrid();
+    // Resolve board until no matches
+    let settled = false;
+    while (!settled) {
+        const matches = getAllMatches(board);
+        if (matches.length === 0) break;
+        clearMatchesAndScore(board, false);  // no score for initial cleanup
+    }
+    // double check no matches remain
+    let anyMatch = true;
+    while(anyMatch) {
+        const m = getAllMatches(board);
+        if(m.length===0) break;
+        clearMatchesAndScore(board, false);
+    }
+    renderGrid();
+    selectedRow = -1;
+    selectedCol = -1;
+    gameActive = true;
+    isProcessing = false;
+    showStatusMessage("🎮 Game Started! Match candies!", 1500);
+    checkWinCondition();
+}
+
+// Show menu and pause game (gameActive = false)
+function showMenu() {
+    if (isProcessing) return;
     gameActive = false;
-    const startMenu = document.getElementById('startMenu');
-    if(startMenu) startMenu.classList.remove('hidden');
-    resetGame();
-}
-
-// Start the game from menu
-function startGame() {
-    const startMenu = document.getElementById('startMenu');
-    if(startMenu) startMenu.classList.add('hidden');
-    gameActive = true;
+    menuOverlay.classList.remove('hidden-menu');
+    // Clear any selected tile highlight
+    clearSelectedHighlight();
     selectedRow = -1;
     selectedCol = -1;
-    isProcessing = false;
-    currentScore = 0;
-    document.getElementById('score').textContent = currentScore;
-    initGrid();
-    renderGrid();
-    updateStatusMessage('✨ Game started! Swap tiles to match 3+! ✨');
+    showStatusMessage("Game paused. Press Play to continue or New Game", 1200);
 }
 
-// Initialize event listeners when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize grid but don't start game yet
-    initGrid();
+// Hide menu, activate game (if game not yet initialized, init fresh)
+function hideMenuAndStartGame(resetIfNeeded = false) {
+    menuOverlay.classList.add('hidden-menu');
+    if (!gameActive || resetIfNeeded) {
+        // Initialize fresh game state
+        initializeFreshGame();
+    } else {
+        // just resume active game
+        gameActive = true;
+        showStatusMessage("Game resumed! Keep matching!", 1000);
+    }
+}
+
+function initializeFreshGame() {
+    // completely reset board & score & active flag
+    isProcessing = true;
+    currentScore = 0;
+    updateScoreUI();
+    board = createEmptyBoard();
+    // Clear initial matches without scoring
+    let changed = true;
+    while(changed) {
+        const matches = getAllMatches(board);
+        if(matches.length === 0) break;
+        clearMatchesAndScore(board, false);
+    }
     renderGrid();
-    
-    // Add reset button listener
-    const resetButton = document.getElementById('resetButton');
-    if(resetButton) {
-        resetButton.addEventListener('click', resetGame);
+    selectedRow = -1;
+    selectedCol = -1;
+    gameActive = true;
+    isProcessing = false;
+    showStatusMessage("✨ New Game! Swap and Match ✨", 1500);
+    checkWinCondition();
+}
+
+// New Game from button inside game container
+function newGameButtonHandler() {
+    if (!gameActive && menuOverlay && !menuOverlay.classList.contains('hidden-menu')) {
+        // If menu is open, close it and start fresh
+        hideMenuAndStartGame(true);
+    } else {
+        if (isProcessing) return;
+        initializeFreshGame();
     }
-    
-    // Add menu button listener
-    const menuButton = document.getElementById('menuButton');
-    if(menuButton) {
-        menuButton.addEventListener('click', returnToMenu);
-    }
-    
-    // Add start button listener
-    const startButton = document.getElementById('startButton');
-    if(startButton) {
-        startButton.addEventListener('click', startGame);
-    }
-    
-    // Enter key to start
-    document.addEventListener('keydown', function(e) {
-        if(e.key === 'Enter') {
-            const startMenu = document.getElementById('startMenu');
-            if(startMenu && !startMenu.classList.contains('hidden')) {
-                startGame();
+}
+
+// Event listeners and initialization (menu shown by default, game container exists but not active)
+function setupEventListeners() {
+    startBtn.addEventListener('click', () => {
+        hideMenuAndStartGame(true);
+    });
+    resetBtn.addEventListener('click', newGameButtonHandler);
+    menuBtn.addEventListener('click', () => {
+        if (gameActive) {
+            showMenu();
+        } else {
+            // if already inactive just bring menu
+            if (menuOverlay.classList.contains('hidden-menu')) {
+                showMenu();
+            } else {
+                menuOverlay.classList.remove('hidden-menu');
             }
         }
     });
-    
-    // Game is not active until menu is closed
+    // Keyboard Enter to start from menu
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            if (menuOverlay && !menuOverlay.classList.contains('hidden-menu')) {
+                e.preventDefault();
+                hideMenuAndStartGame(true);
+            }
+        }
+    });
+    // Additional fix: Click outside menu card? Not needed but ensures menu background clicking doesn't hide:
+    menuOverlay.addEventListener('click', (e) => {
+        if (e.target === menuOverlay) {
+            // optional: you can start on click background, but we prevent accidental?
+            // do nothing - only start via button or Enter
+        }
+    });
+}
+
+// Ensure that on page load, only menu is visible, game container is inactive and no gameplay triggers.
+function initialSetup() {
+    // Build placeholder board but gameActive = false, no interactions till start.
+    board = createEmptyBoard();
+    renderGrid();
+    currentScore = 0;
+    updateScoreUI();
+    targetSpan.textContent = targetScore;
     gameActive = false;
-    updateStatusMessage('🌟 Press ENTER to start! 🌟');
-});
+    isProcessing = false;
+    selectedRow = -1;
+    // Menu overlay visible by default
+    menuOverlay.classList.remove('hidden-menu');
+    showStatusMessage("🎮 Click PLAY NOW to start matching!", 2000);
+    // Disable click effect indirectly: onTileClick checks gameActive flag
+    setupEventListeners();
+}
+
+// Run initial
+initialSetup();

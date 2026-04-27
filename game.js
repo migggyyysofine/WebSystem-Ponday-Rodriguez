@@ -3,6 +3,109 @@
 // ------------------------------
 // GAME STATE VARIABLES
 // ------------------------------
+// ============ SOUND SYSTEM ============
+let soundEnabled = true;
+let audioCtx = null;
+
+function initAudioOnFirstClick() {
+    if (!audioCtx) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioCtx();
+    }
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+}
+
+function playSound(type) {
+    if (!soundEnabled) return;
+    
+    try {
+        initAudioOnFirstClick();
+        
+        const gainNode = audioCtx.createGain();
+        gainNode.connect(audioCtx.destination);
+        gainNode.gain.value = 0.15;
+        
+        if (type === 'match') {
+            const osc = audioCtx.createOscillator();
+            osc.connect(gainNode);
+            osc.frequency.value = 523.25;
+            osc.start();
+            gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.2);
+            osc.stop(audioCtx.currentTime + 0.2);
+        }
+        else if (type === 'levelup') {
+            const notes = [523.25, 659.25, 783.99];
+            notes.forEach((freq, i) => {
+                const osc = audioCtx.createOscillator();
+                const g = audioCtx.createGain();
+                osc.connect(g);
+                g.connect(audioCtx.destination);
+                osc.frequency.value = freq;
+                g.gain.value = 0.15;
+                osc.start(audioCtx.currentTime + i * 0.12);
+                g.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + i * 0.12 + 0.25);
+                osc.stop(audioCtx.currentTime + i * 0.12 + 0.25);
+            });
+        }
+        else if (type === 'click') {
+            const osc = audioCtx.createOscillator();
+            osc.connect(gainNode);
+            osc.frequency.value = 880;
+            osc.start();
+            gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.1);
+            osc.stop(audioCtx.currentTime + 0.1);
+        }
+        else if (type === 'error') {
+            const osc = audioCtx.createOscillator();
+            osc.connect(gainNode);
+            osc.frequency.value = 220;
+            osc.start();
+            gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.15);
+            osc.stop(audioCtx.currentTime + 0.15);
+        }
+    } catch(e) { console.log('Sound error:', e); }
+}
+
+function toggleSound() {
+    soundEnabled = !soundEnabled;
+    const soundBtn = document.getElementById('soundToggle');
+    if (soundBtn) {
+        soundBtn.textContent = soundEnabled ? '🔊 Sound On' : '🔇 Sound Off';
+    }
+}
+// In your trySwap function - when match is successful:
+async function trySwap(r1, c1, r2, c2) {
+    // ... existing code ...
+    if (matches.length > 0) {
+        playSound('match');  // <-- ADD THIS
+        // ... rest of code
+    } else {
+        playSound('error');  // <-- ADD THIS for invalid swap
+        // ... rest of code
+    }
+}
+
+// In your advanceToNextLevel function:
+function advanceToNextLevel() {
+    playSound('levelup');  // <-- ADD THIS
+    // ... rest of code
+}
+
+// In your onTileClick function (when selecting a tile):
+function onTileClick(row, col) {
+    if (selectedRow === -1) {
+        playSound('click');  // <-- ADD THIS
+        // ... rest of code
+    }
+}
+
+// In your createConfettiEffect function (add victory sound):
+function createConfettiEffect() {
+    playSound('levelup');  // <-- ADD THIS for level completion
+    // ... rest of code
+}
 const ROWS = 8;
 const COLS = 8;
 let board = [];

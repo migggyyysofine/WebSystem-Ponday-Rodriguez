@@ -1,41 +1,45 @@
+// game.js - Complete Match-3 Game Logic
+
+// ------------------------------
+// GAME STATE VARIABLES
+// ------------------------------
 const ROWS = 8;
 const COLS = 8;
 let board = [];
 let currentScore = 0;
-let currentLevel = 1;
-let currentTarget = 1200;
+let targetScore = 1200;
 let selectedRow = -1, selectedCol = -1;
-let isProcessing = false;
-let gameActive = false;
-let levelPending = false;
+let isProcessing = false;    // Prevents clicks during match/reset/refill
+let gameActive = false;      // Game logic only runs when menu is closed AND game is initialized
 
+// DOM Elements
 const menuOverlay = document.getElementById('startMenu');
-const levelModal = document.getElementById('levelModal');
+const gameContainer = document.querySelector('.game-container');
 const gridContainer = document.getElementById('game-grid');
 const scoreSpan = document.getElementById('score');
 const targetSpan = document.getElementById('target');
-const levelNumberSpan = document.getElementById('levelNumber');
 const statusDiv = document.getElementById('statusMessage');
 const resetBtn = document.getElementById('resetButton');
 const menuBtn = document.getElementById('menuButton');
 const startBtn = document.getElementById('startButton');
-const continueBtn = document.getElementById('continueGameBtn');
-const menuFromModalBtn = document.getElementById('menuFromModalBtn');
-const levelCompleteMsgSpan = document.getElementById('levelCompleteMsg');
-const nextTargetSpan = document.getElementById('nextTargetSpan');
 
+// Candy types (emoji based)
 const CANDIES = ['🍎', '🍊', '🍇', '🍒', '🍓', '🍉'];
 
+// Helper: random candy
 function randomCandy() {
     return CANDIES[Math.floor(Math.random() * CANDIES.length)];
 }
 
+// Initialize fresh board (with no initial matches)
 function createEmptyBoard() {
     return Array(ROWS).fill().map(() => Array(COLS).fill().map(() => randomCandy()));
 }
 
+// Remove matches and resolve until stable
 function getAllMatches(boardData) {
     const matches = [];
+    // Horizontal matches
     for (let r = 0; r < ROWS; r++) {
         let len = 1;
         for (let c = 1; c <= COLS; c++) {
@@ -51,6 +55,7 @@ function getAllMatches(boardData) {
             }
         }
     }
+    // Vertical matches
     for (let c = 0; c < COLS; c++) {
         let len = 1;
         for (let r = 1; r <= ROWS; r++) {
@@ -69,6 +74,7 @@ function getAllMatches(boardData) {
     return matches;
 }
 
+// Apply gravity and refill top with random candies
 function applyGravityAndRefill(boardData) {
     for (let c = 0; c < COLS; c++) {
         const columnValues = [];
@@ -87,25 +93,50 @@ function applyGravityAndRefill(boardData) {
     }
 }
 
+// Clear matches and return total cleared count
 function clearMatchesAndScore(boardData, addScore = true) {
     const matches = getAllMatches(boardData);
     if (matches.length === 0) return 0;
     
+    // Remove matched positions (set to null)
     for (let [r, c] of matches) {
         boardData[r][c] = null;
     }
     
+    // Apply gravity and refill
     applyGravityAndRefill(boardData);
     
+    // Add score: each matched tile gives 10 points
     if (addScore) {
         const points = matches.length * 10;
         currentScore += points;
         updateScoreUI();
-        showStatusMessage(`+${points} points!`, 600);
+        showStatusMessage(`+${points} points! Chain reaction!`, 800);
     }
     return matches.length;
 }
 
+// Clear matches repeatedly until stable (and accumulate score)
+async function settleMatchesAndRefill(animate = true) {
+    let anyCleared = false;
+    while (true) {
+        const matches = getAllMatches(board);
+        if (matches.length === 0) break;
+        anyCleared = true;
+        // mark matched for animation (visual pop)
+        if (animate) await animateMatches(matches);
+        // clear matches and add score
+        clearMatchesAndScore(board, true);
+        if (animate) await delay(120);
+    }
+    if (anyCleared) {
+        updateBoardUI();
+        checkWinCondition();
+    }
+    return anyCleared;
+}
+
+// Visual animation for matches
 async function animateMatches(matches) {
     const tiles = document.querySelectorAll('.tile');
     const matchSet = new Set(matches.map(m => `${m[0]},${m[1]}`));
@@ -123,27 +154,11 @@ async function animateMatches(matches) {
     }
 }
 
-async function settleMatchesAndRefill(animate = true) {
-    let anyCleared = false;
-    while (true) {
-        const matches = getAllMatches(board);
-        if (matches.length === 0) break;
-        anyCleared = true;
-        if (animate) await animateMatches(matches);
-        clearMatchesAndScore(board, true);
-        if (animate) await delay(100);
-        updateBoardUI();
-    }
-    if (anyCleared) {
-        updateBoardUI();
-        checkLevelProgress();
-    }
-    return anyCleared;
-}
-
 function delay(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 
+// Update entire grid UI from board array
 function updateBoardUI() {
+    if (!gridContainer) return;
     const tiles = document.querySelectorAll('.tile');
     for (let i = 0; i < tiles.length; i++) {
         const tile = tiles[i];
@@ -152,10 +167,12 @@ function updateBoardUI() {
         tile.textContent = board[row][col];
         tile.classList.remove('selected');
     }
+    // clear selection highlight
     selectedRow = -1;
     selectedCol = -1;
 }
 
+// Render grid completely
 function renderGrid() {
     gridContainer.innerHTML = '';
     for (let i = 0; i < ROWS; i++) {
@@ -165,10 +182,13 @@ function renderGrid() {
             tile.textContent = board[i][j];
             tile.setAttribute('data-row', i);
             tile.setAttribute('data-col', j);
-            tile.addEventListener('click', ((row, col) => () => onTileClick(row, col)));
+            tile.addEventListener('click', (function(row, col) {
+                return function() { onTileClick(row, col); };
+            })(i, j));
             gridContainer.appendChild(tile);
         }
     }
+    // Reset selected highlight
     selectedRow = -1;
     selectedCol = -1;
 }
@@ -177,97 +197,47 @@ function updateScoreUI() {
     scoreSpan.textContent = currentScore;
 }
 
-function updateLevelUI() {
-    levelNumberSpan.textContent = currentLevel;
-    targetSpan.textContent = currentTarget;
-}
-
 function showStatusMessage(msg, duration = 1500) {
     statusDiv.textContent = msg;
     if (duration > 0) {
         setTimeout(() => {
-            if (statusDiv.textContent === msg && gameActive && !levelPending) {
-                statusDiv.textContent = "✨ Swap tiles! ✨";
+            if (statusDiv.textContent === msg) {
+                statusDiv.textContent = gameActive ? "✨ Swap tiles! ✨" : "Game not active. Start from Menu.";
             }
         }, duration);
     }
 }
 
-function checkLevelProgress() {
-    if (!gameActive) return;
-    if (levelPending) return;
-    
-    if (currentScore >= currentTarget) {
-        levelPending = true;
+function checkWinCondition() {
+    if (currentScore >= targetScore && gameActive) {
+        showStatusMessage("🎉 YOU WIN! 🎉 Great matching!", 3000);
         gameActive = false;
-        
-        levelCompleteMsgSpan.textContent = `You completed Level ${currentLevel}!`;
-        const nextTarget = calculateNextTarget(currentTarget);
-        nextTargetSpan.textContent = nextTarget;
-        levelModal.classList.remove('hidden-modal');
-        createConfettiEffect();
-        showStatusMessage(`🎉 LEVEL ${currentLevel} COMPLETE! 🎉`, 2000);
-    }
-}
-
-function calculateNextTarget(currentTargetValue) {
-    if (currentTargetValue === 1200) return 2000;
-    if (currentTargetValue === 2000) return 3000;
-    return currentTargetValue + 1000;
-}
-
-function advanceToNextLevel() {
-    currentLevel++;
-    const nextTargetValue = calculateNextTarget(currentTarget);
-    currentTarget = nextTargetValue;
-    updateLevelUI();
-    gameActive = true;
-    levelPending = false;
-    showStatusMessage(`⭐ LEVEL ${currentLevel}! Reach ${currentTarget} points! ⭐`, 2500);
-}
-
-function createConfettiEffect() {
-    for (let i = 0; i < 60; i++) {
-        const confetti = document.createElement('div');
-        confetti.className = 'level-up-confetti';
-        confetti.style.position = 'fixed';
-        confetti.style.width = '10px';
-        confetti.style.height = '10px';
-        confetti.style.backgroundColor = `hsl(${Math.random() * 360}, 80%, 60%)`;
-        confetti.style.borderRadius = '50%';
-        confetti.style.left = Math.random() * window.innerWidth + 'px';
-        confetti.style.top = '-20px';
-        document.body.appendChild(confetti);
-        
-        const destination = window.innerHeight + 50;
-        confetti.animate([
-            { transform: `translateY(0px) rotate(0deg)`, opacity: 1 },
-            { transform: `translateY(${destination}px) rotate(${Math.random() * 360}deg)`, opacity: 0 }
-        ], {
-            duration: 1000 + Math.random() * 1000,
-            easing: 'cubic-bezier(0.2, 0.9, 0.4, 1)'
-        });
-        
+        isProcessing = true;
         setTimeout(() => {
-            if (confetti && confetti.remove) confetti.remove();
-        }, 1500);
+            statusDiv.textContent = "🏆 VICTORY! Press New Game or Menu 🏆";
+            isProcessing = false;
+        }, 500);
     }
 }
 
+// Swap logic
 async function trySwap(r1, c1, r2, c2) {
-    if (!gameActive || levelPending) {
-        showStatusMessage("Level complete! Press CONTINUE to advance!", 1000);
+    if (!gameActive) {
+        showStatusMessage("Game not started! Click Menu & Start", 1000);
         return false;
     }
     if (isProcessing) return false;
     
+    // Swap temporarily
     const temp = board[r1][c1];
     board[r1][c1] = board[r2][c2];
     board[r2][c2] = temp;
     updateBoardUI();
     
+    // Check for any matches after swap
     const matches = getAllMatches(board);
     if (matches.length > 0) {
+        // Valid swap!
         isProcessing = true;
         await animateMatches(matches);
         clearMatchesAndScore(board, true);
@@ -276,48 +246,54 @@ async function trySwap(r1, c1, r2, c2) {
         isProcessing = false;
         return true;
     } else {
+        // Invalid swap: revert
         const tempBack = board[r1][c1];
         board[r1][c1] = board[r2][c2];
         board[r2][c2] = tempBack;
         updateBoardUI();
-        showStatusMessage("❌ No match! Try again", 600);
+        showStatusMessage("❌ No match! Swap again", 600);
         return false;
     }
 }
 
+// Tile click handler
 function onTileClick(row, col) {
-    if (!gameActive || levelPending) {
-        if (levelPending) showStatusMessage("🎯 Level Complete! Press CONTINUE!", 1200);
-        else showStatusMessage("💡 Start game from Menu!", 1000);
+    if (!gameActive) {
+        showStatusMessage("💡 Open menu and press PLAY to start game!", 1200);
         return;
     }
     if (isProcessing) {
-        showStatusMessage("⏳ Processing...", 500);
+        showStatusMessage("⏳ Processing... Wait", 500);
         return;
     }
     
     if (selectedRow === -1) {
+        // First selection
         selectedRow = row;
         selectedCol = col;
         highlightTile(row, col, true);
-        showStatusMessage(`Selected ${board[row][col]}`, 600);
+        showStatusMessage(`Selected ${board[row][col]}`, 800);
     } else {
+        // Already selected a tile
         const prevRow = selectedRow, prevCol = selectedCol;
         const isAdjacent = (Math.abs(prevRow - row) + Math.abs(prevCol - col)) === 1;
         
         if (isAdjacent) {
+            // attempt swap
             highlightTile(prevRow, prevCol, false);
             trySwap(prevRow, prevCol, row, col).finally(() => {
+                // after swap or fail, clear selected highlight
                 clearSelectedHighlight();
                 selectedRow = -1;
                 selectedCol = -1;
             });
         } else {
+            // Not adjacent: select new tile
             highlightTile(prevRow, prevCol, false);
             selectedRow = row;
             selectedCol = col;
             highlightTile(row, col, true);
-            showStatusMessage(`Selected ${board[row][col]}`, 600);
+            showStatusMessage(`Selected ${board[row][col]}`, 800);
         }
     }
 }
@@ -335,20 +311,74 @@ function highlightTile(row, col, highlight) {
 }
 
 function clearSelectedHighlight() {
-    document.querySelectorAll('.tile').forEach(t => t.classList.remove('selected'));
+    const tiles = document.querySelectorAll('.tile');
+    tiles.forEach(t => t.classList.remove('selected'));
+}
+
+// Reset full game state (score, fresh board)
+async function resetGameAndStart() {
+    if (isProcessing) return;
+    isProcessing = true;
+    currentScore = 0;
+    updateScoreUI();
+    board = createEmptyBoard();
+    // Remove any initial matches by settling
+    renderGrid();
+    // Resolve board until no matches
+    let settled = false;
+    while (!settled) {
+        const matches = getAllMatches(board);
+        if (matches.length === 0) break;
+        clearMatchesAndScore(board, false);  // no score for initial cleanup
+    }
+    // double check no matches remain
+    let anyMatch = true;
+    while(anyMatch) {
+        const m = getAllMatches(board);
+        if(m.length===0) break;
+        clearMatchesAndScore(board, false);
+    }
+    renderGrid();
+    selectedRow = -1;
+    selectedCol = -1;
+    gameActive = true;
+    isProcessing = false;
+    showStatusMessage("🎮 Game Started! Match candies!", 1500);
+    checkWinCondition();
+}
+
+// Show menu and pause game (gameActive = false)
+function showMenu() {
+    if (isProcessing) return;
+    gameActive = false;
+    menuOverlay.classList.remove('hidden-menu');
+    // Clear any selected tile highlight
+    clearSelectedHighlight();
+    selectedRow = -1;
+    selectedCol = -1;
+    showStatusMessage("Game paused. Press Play to continue or New Game", 1200);
+}
+
+// Hide menu, activate game (if game not yet initialized, init fresh)
+function hideMenuAndStartGame(resetIfNeeded = false) {
+    menuOverlay.classList.add('hidden-menu');
+    if (!gameActive || resetIfNeeded) {
+        // Initialize fresh game state
+        initializeFreshGame();
+    } else {
+        // just resume active game
+        gameActive = true;
+        showStatusMessage("Game resumed! Keep matching!", 1000);
+    }
 }
 
 function initializeFreshGame() {
+    // completely reset board & score & active flag
     isProcessing = true;
     currentScore = 0;
-    currentLevel = 1;
-    currentTarget = 1200;
-    levelPending = false;
-    
     updateScoreUI();
-    updateLevelUI();
-    
     board = createEmptyBoard();
+    // Clear initial matches without scoring
     let changed = true;
     while(changed) {
         const matches = getAllMatches(board);
@@ -360,77 +390,74 @@ function initializeFreshGame() {
     selectedCol = -1;
     gameActive = true;
     isProcessing = false;
-    showStatusMessage("✨ Level 1! Reach 1200 points ✨", 2000);
+    showStatusMessage("✨ New Game! Swap and Match ✨", 1500);
+    checkWinCondition();
 }
 
-function resetGameHandler() {
-    if (levelModal && !levelModal.classList.contains('hidden-modal')) {
-        levelModal.classList.add('hidden-modal');
-    }
-    initializeFreshGame();
-}
-
-function showMainMenu() {
-    gameActive = false;
-    levelPending = false;
-    if (levelModal && !levelModal.classList.contains('hidden-modal')) {
-        levelModal.classList.add('hidden-modal');
-    }
-    menuOverlay.classList.remove('hidden-menu');
-    clearSelectedHighlight();
-    selectedRow = -1;
-    selectedCol = -1;
-    showStatusMessage("Game in menu. Press PLAY to start!", 1500);
-}
-
-function hideMenuAndStart() {
-    menuOverlay.classList.add('hidden-menu');
-    if (!gameActive || currentScore === 0 && currentLevel === 1) {
-        initializeFreshGame();
+// New Game from button inside game container
+function newGameButtonHandler() {
+    if (!gameActive && menuOverlay && !menuOverlay.classList.contains('hidden-menu')) {
+        // If menu is open, close it and start fresh
+        hideMenuAndStartGame(true);
     } else {
-        gameActive = true;
-        if (levelPending) levelPending = false;
-        showStatusMessage("Resume matching!", 1000);
+        if (isProcessing) return;
+        initializeFreshGame();
     }
 }
 
-function onContinueLevel() {
-    if (levelModal) levelModal.classList.add('hidden-modal');
-    advanceToNextLevel();
-    gameActive = true;
-    levelPending = false;
-    showStatusMessage(`Level ${currentLevel} START! Target: ${currentTarget} points`, 2000);
-    updateBoardUI();
-}
-
-function onMenuFromModal() {
-    if (levelModal) levelModal.classList.add('hidden-modal');
-    showMainMenu();
-}
-
-startBtn.addEventListener('click', hideMenuAndStart);
-resetBtn.addEventListener('click', resetGameHandler);
-menuBtn.addEventListener('click', showMainMenu);
-continueBtn.addEventListener('click', onContinueLevel);
-menuFromModalBtn.addEventListener('click', onMenuFromModal);
-
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-        if (menuOverlay && !menuOverlay.classList.contains('hidden-menu')) {
-            e.preventDefault();
-            hideMenuAndStart();
+// Event listeners and initialization (menu shown by default, game container exists but not active)
+function setupEventListeners() {
+    startBtn.addEventListener('click', () => {
+        hideMenuAndStartGame(true);
+    });
+    resetBtn.addEventListener('click', newGameButtonHandler);
+    menuBtn.addEventListener('click', () => {
+        if (gameActive) {
+            showMenu();
+        } else {
+            // if already inactive just bring menu
+            if (menuOverlay.classList.contains('hidden-menu')) {
+                showMenu();
+            } else {
+                menuOverlay.classList.remove('hidden-menu');
+            }
         }
-    }
-});
+    });
+    // Keyboard Enter to start from menu
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            if (menuOverlay && !menuOverlay.classList.contains('hidden-menu')) {
+                e.preventDefault();
+                hideMenuAndStartGame(true);
+            }
+        }
+    });
+    // Additional fix: Click outside menu card? Not needed but ensures menu background clicking doesn't hide:
+    menuOverlay.addEventListener('click', (e) => {
+        if (e.target === menuOverlay) {
+            // optional: you can start on click background, but we prevent accidental?
+            // do nothing - only start via button or Enter
+        }
+    });
+}
 
-board = createEmptyBoard();
-renderGrid();
-currentScore = 0;
-currentLevel = 1;
-currentTarget = 1200;
-updateScoreUI();
-updateLevelUI();
-gameActive = false;
-levelPending = false;
-menuOverlay.classList.remove('hidden-menu');
-showStatusMessage("🎮 Click PLAY NOW to start matching and level up!", 2500);
+// Ensure that on page load, only menu is visible, game container is inactive and no gameplay triggers.
+function initialSetup() {
+    // Build placeholder board but gameActive = false, no interactions till start.
+    board = createEmptyBoard();
+    renderGrid();
+    currentScore = 0;
+    updateScoreUI();
+    targetSpan.textContent = targetScore;
+    gameActive = false;
+    isProcessing = false;
+    selectedRow = -1;
+    // Menu overlay visible by default
+    menuOverlay.classList.remove('hidden-menu');
+    showStatusMessage("🎮 Click PLAY NOW to start matching!", 2000);
+    // Disable click effect indirectly: onTileClick checks gameActive flag
+    setupEventListeners();
+}
+
+// Run initial
+initialSetup();

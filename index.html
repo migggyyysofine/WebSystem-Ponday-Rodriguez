@@ -170,18 +170,112 @@
             .tile {
                 width: 30px !important;
                 height: 30px !important;
-                font-size: 16px !important;
+                font-size: 20px !important;
             }
         }
         
-        .hidden {
+        /* Menu Styles - Fixed to be VISIBLE and above game */
+        .start-menu {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+        
+        .start-card {
+            background: linear-gradient(145deg, #ffffff, #f8f9ff);
+            border-radius: 48px;
+            padding: 48px 32px;
+            text-align: center;
+            max-width: 480px;
+            width: 90%;
+            box-shadow: 0 30px 50px rgba(0,0,0,0.4);
+            animation: fadeSlideUp 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+        }
+        
+        @keyframes fadeSlideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .start-card h1 {
+            font-size: 48px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            margin-bottom: 16px;
+        }
+        
+        .start-card p {
+            color: #555;
+            font-size: 18px;
+            margin: 20px 0;
+            line-height: 1.5;
+        }
+        
+        .enter-hint {
+            background: #f0f0f0;
+            padding: 12px;
+            border-radius: 30px;
+            margin: 20px auto;
+            display: inline-block;
+            width: auto;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        kbd {
+            background: #222;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-weight: bold;
+            margin: 0 4px;
+        }
+        
+        .play-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-size: 22px;
+            padding: 14px 32px;
+            border-radius: 40px;
+            margin-top: 20px;
+            box-shadow: 0 8px 18px rgba(102,126,234,0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .play-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 12px 24px rgba(102,126,234,0.6);
+        }
+        
+        .hidden-menu {
             display: none !important;
+        }
+        
+        /* When game is active menu hidden, game visible */
+        body.menu-active .game-container {
+            filter: blur(0px);
         }
     </style>
 </head>
 <body>
 
-<!-- Start Menu -->
+<!-- Main Menu Overlay (visible by default) -->
 <div id="startMenu" class="start-menu">
     <div class="start-card">
         <h1>🍬 MATCH-3</h1>
@@ -193,7 +287,7 @@
     </div>
 </div>
 
-<!-- Main Game Container -->
+<!-- Main Game Container (initially visible but gameplay starts only after menu closed) -->
 <div class="game-container">
     <h1>🍬 Match-3 Game</h1>
     <div class="score-board">
@@ -209,7 +303,3 @@
         <button id="menuButton" class="menu-btn">🏠 Menu</button>
     </div>
 </div>
-
-<script src="game.js"></script>
-</body>
-</html>

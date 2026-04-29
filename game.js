@@ -110,7 +110,7 @@ const ROWS = 8;
 const COLS = 8;
 let board = [];
 let currentScore = 0;
-let targetScore = 1200;
+let targetScore = 1500;
 let selectedRow = -1, selectedCol = -1;
 let isProcessing = false;    // Prevents clicks during match/reset/refill
 let gameActive = false;      // Game logic only runs when menu is closed AND game is initialized
@@ -357,6 +357,72 @@ async function trySwap(r1, c1, r2, c2) {
         showStatusMessage("❌ No match! Swap again", 600);
         return false;
     }
+}
+// ============ OUT OF MOVES DETECTION ============
+function hasAnyValidMove() {
+    // Check all adjacent tile pairs to see if swapping them would create a match
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            // Check right neighbor
+            if (c + 1 < COLS) {
+                // Try swap with right neighbor
+                const temp = board[r][c];
+                board[r][c] = board[r][c + 1];
+                board[r][c + 1] = temp;
+                
+                const matches = getAllMatches(board);
+                
+                // Swap back
+                const tempBack = board[r][c];
+                board[r][c] = board[r][c + 1];
+                board[r][c + 1] = tempBack;
+                
+                if (matches.length > 0) return true;
+            }
+            
+            // Check down neighbor
+            if (r + 1 < ROWS) {
+                // Try swap with down neighbor
+                const temp = board[r][c];
+                board[r][c] = board[r + 1][c];
+                board[r + 1][c] = temp;
+                
+                const matches = getAllMatches(board);
+                
+                // Swap back
+                const tempBack = board[r][c];
+                board[r][c] = board[r + 1][c];
+                board[r + 1][c] = tempBack;
+                
+                if (matches.length > 0) return true;
+            }
+        }
+    }
+    return false;
+}
+
+function checkOutOfMoves() {
+    if (!gameActive) return;
+    
+    if (!hasAnyValidMove()) {
+        gameActive = false;
+        isProcessing = true;
+        showStatusMessage("😢 OUT OF MOVES! 😢 No more swaps possible!", 4000);
+        
+        // Add a visual indicator on the game board
+        const gameGrid = document.getElementById('game-grid');
+        if (gameGrid) {
+            gameGrid.style.opacity = '0.6';
+            gameGrid.style.filter = 'grayscale(0.3)';
+        }
+        
+        setTimeout(() => {
+            statusDiv.textContent = "💀 GAME OVER - Out of Moves! Press New Game 💀";
+            isProcessing = false;
+        }, 500);
+        return true;
+    }
+    return false;
 }
 
 // Tile click handler

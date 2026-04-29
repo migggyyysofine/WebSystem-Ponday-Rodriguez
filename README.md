@@ -34,11 +34,11 @@ A classic Match-3 puzzle game built with HTML, CSS, and JavaScript.
 - Vanilla JavaScript (ES6)
 
 ## Team Members
-- [Your Name] - Core game logic, UI/UX, animations
+- Rodriguez-Ponday - Core game logic, UI/UX, animations
 - Rodriguez-Ponday - Match detection, gravity system, audio
 
 ## Version Control
-This project uses Git for version control with 15+ commits tracking development history.
+This project uses Git for version control with many commits tracking development history.
 
 ## How to Run
 Simply open `index.html` in any modern web browser.

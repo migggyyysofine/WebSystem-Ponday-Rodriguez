@@ -41,7 +41,7 @@ const nextTargetSpan = document.getElementById('nextTargetSpan');
 const levelCompleteMsg = document.getElementById('levelCompleteMsg');
 
 // Fruit types (emoji based)
-const FRUITS = ['🍎', '🍊', '🍇', '🍒', '🍓', '🍉', '🥝', '🍑'];
+const FRUITS = ['🌹', '🌺', '🌻', '🥑', '🍓', '🥕', '🥝', '🌶️'];
 
 // Helper: random fruit
 function randomFruit() {

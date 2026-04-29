@@ -1,5 +1,5 @@
 # WebSystem-Ponday-Rodriguez
-# 🍬 Match-3 Game
+# 🍬 HANAPIN MO ANG KAPAREHAS KO BEYBE!
 
 A classic Match-3 puzzle game built with HTML, CSS, and JavaScript.
 
@@ -19,6 +19,7 @@ A classic Match-3 puzzle game built with HTML, CSS, and JavaScript.
 3. Click on an adjacent tile to swap
 4. Create horizontal or vertical lines of 3+ matching tiles
 5. Watch for chain reactions that create bonus points!
+6. Don't let the moves out of
 
 ## Scoring
 - Base: 10 points per matched tile
